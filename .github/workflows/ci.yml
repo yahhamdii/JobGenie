@@ -1,0 +1,118 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  tests:
+    name: Run tests (Python + Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install system deps for Playwright
+        run: |
+          sudo npx --yes playwright install-deps chromium | cat
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Install Playwright browsers
+        run: |
+          python -m playwright install chromium | cat
+
+      - name: Materialize ENV_FILE secret to .env and env_config.txt
+        env:
+          ENV_FILE: ${{ secrets.ENV_FILE }}
+        run: |
+          if [ -n "$ENV_FILE" ]; then
+            echo "$ENV_FILE" > .env
+            echo "$ENV_FILE" > env_config.txt
+          else
+            echo "ENV_FILE secret is empty or not set" >&2
+          fi
+
+      - name: Run smoke tests
+        run: |
+          set -e
+          python -V
+          # Basic sanity: import modules and run quick tests
+          python - <<'PY'
+          import sys
+          import importlib
+          mods = [
+            'bot', 'auto_candidature_manager', 'candidature_manager', 'config_manager',
+            'sources.base_source', 'sources.linkedin', 'sources.indeed', 'sources.france_travail',
+            'nlp.matcher', 'nlp.generator', 'notification_manager'
+          ]
+          for m in mods:
+              importlib.import_module(m)
+          print('Imports OK')
+          PY
+
+      - name: Run unit tests
+        run: |
+          set -e
+          ls -1 test_*.py | xargs -I {} python {} | cat
+
+  docker:
+    name: Build and push Docker image
+    needs: tests
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+

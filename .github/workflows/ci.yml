@@ -164,13 +164,20 @@ jobs:
             else
               EF_OPT=""
             fi
-            docker run -d --name jobgenie \
-              -p 7001:7001 \
-              $EF_OPT \
-              -v ~/jobgenie-data/config.yaml:/jobgenie/config.yaml:ro \
-              -v ~/jobgenie-data/CV.pdf:/jobgenie/cv.pdf:ro \
+            RUN_OPTS="-d --name jobgenie -p 7001:7001 $EF_OPT \
               -v ~/jobgenie-data/outbox:/jobgenie/outbox \
               -v ~/jobgenie-data/logs:/jobgenie/logs \
-              -v ~/jobgenie-data/cv_letters:/jobgenie/cv_letters \
-              "$IMAGE"
+              -v ~/jobgenie-data/cv_letters:/jobgenie/cv_letters"
+            if [ -f ~/jobgenie-data/config.yaml ]; then
+              RUN_OPTS="$RUN_OPTS -v ~/jobgenie-data/config.yaml:/jobgenie/config.yaml:ro"
+            else
+              echo "No config.yaml on server; using image default /jobgenie/config.yaml"
+            fi
+            if [ -f ~/jobgenie-data/CV.pdf ]; then
+              RUN_OPTS="$RUN_OPTS -v ~/jobgenie-data/CV.pdf:/jobgenie/cv.pdf:ro"
+            else
+              echo "No CV.pdf on server; using image default /jobgenie/CV.pdf"
+            fi
+            # shellcheck disable=SC2086
+            docker run $RUN_OPTS "$IMAGE"
 

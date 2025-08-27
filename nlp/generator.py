@@ -97,45 +97,56 @@ class LetterGenerator:
         """Construit le prompt optimisé pour la génération de la lettre"""
         profile = self.profile
         preferences = self.config.get_preferences()
+        from datetime import datetime
+        today = datetime.now().strftime('%d/%m/%Y')
         
         # Calculer le score de correspondance pour personnaliser le prompt
         match_score = job.get('match_score', 0)
         score_percentage = int(match_score * 100)
         
         prompt = f"""
-Tu es un expert en rédaction de lettres de motivation professionnelles. Tu dois rédiger une lettre de motivation PERSUASIVE et PERSONNALISÉE en français pour un candidat avec un score de correspondance de {score_percentage}%.
+Tu es un expert en rédaction de lettres de motivation en français. Génère une lettre COURTE (≤350 mots), PROFESSIONNELLE, PERSONNALISÉE, suivant STRICTEMENT cette structure:
 
-INFORMATIONS SUR LE CANDIDAT:
+1) En-tête (haut à gauche):
+   - Date du jour: {today}
+   - Nom, Email, Téléphone, LinkedIn du candidat
+
+2) Objet: Candidature au poste de {job.get('titre', '')}
+
+3) Accroche d’ouverture: une phrase d’impact montrant la motivation et l’adéquation.
+
+4) Corps:
+   - Paragraphe 1: Relier l’expérience/savoir‑faire du candidat aux exigences de la fiche de poste (exemples concrets, mots‑clés techniques exacts demandés).
+   - Paragraphe 2: Mettre en avant les savoir‑être (communication, collaboration, autonomie, rigueur, ownership) pertinents vis‑à‑vis des attentes du poste.
+   - Paragraphe 3: Pourquoi ce métier et pourquoi cette entreprise (valeurs, produits, impact, stack, secteur), avec 1 à 2 éléments spécifiques à {job.get('entreprise', '')}.
+
+5) Conclusion: disponibilité, ouverture à l’échange, remerciements.
+
+6) Signature: Nom.
+
+Contrainte d’analyse:
+- Valide la fiche de poste (déduis besoins essentiels) et aligne le contenu dessus.
+- Utilise un ton positif et assuré (score de correspondance estimé: {score_percentage}%).
+
+DONNÉES CANDIDAT:
 - Nom: {profile.get('nom', '')}
 - Email: {profile.get('email', '')}
 - Téléphone: {profile.get('telephone', '')}
-- Profil LinkedIn: {profile.get('linkedin', '')}
+- LinkedIn: {profile.get('linkedin', '')}
 - Compétences techniques: {', '.join(preferences.get('stack_technique', []))}
 - Préférences: {', '.join(preferences.get('localisation', []))}
 
-INFORMATIONS SUR L'OFFRE:
-- Titre du poste: {job.get('titre', '')}
+DONNÉES OFFRE:
+- Titre: {job.get('titre', '')}
 - Entreprise: {job.get('entreprise', '')}
 - Localisation: {job.get('localisation', '')}
-- Type de contrat: {job.get('type_contrat', '')}
+- Contrat: {job.get('type_contrat', '')}
 - Salaire: {job.get('salaire', 'N/A')}
 - Remote: {'Oui' if job.get('remote') else 'Non'}
-- Niveau d'expérience: {job.get('experience', 'N/A')}
-- Description: {job.get('description', '')[:800]}...
+- Expérience: {job.get('experience', 'N/A')}
+- Description (extrait): {job.get('description', '')[:800]}...
 
-SCORE DE CORRESPONDANCE: {score_percentage}% - Cette offre correspond bien à votre profil !
-
-INSTRUCTIONS SPÉCIFIQUES:
-1. Rédige une lettre de motivation PERSUASIVE et PERSONNALISÉE
-2. Mets en avant les compétences techniques EXACTEMENT correspondant au poste
-3. Explique pourquoi cette entreprise et ce poste vous intéressent
-4. Sois ENTHOUSIASTE et CONFIANT (score {score_percentage}% = excellente correspondance)
-5. Inclus des exemples concrets de vos réalisations
-6. Termine par un appel à l'action clair
-7. Maximum 350 mots
-8. Format: texte brut, professionnel
-
-Lettre de motivation:
+Produit UNIQUEMENT la lettre, sans balises ni titres.
 """
         return prompt.strip()
     

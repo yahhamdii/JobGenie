@@ -158,13 +158,13 @@ class JobBot:
             jobs = self.collect_jobs()
             if not jobs:
                 logger.info("Aucune offre trouvée")
-                return
+                return []
             
             # 2. Filtrage selon les préférences
             filtered_jobs = self.filter_jobs(jobs)
             if not filtered_jobs:
                 logger.info("Aucune offre ne correspond aux critères")
-                return
+                return []
             
             # 3. Génération des lettres
             jobs_with_letters = self.generate_letters(filtered_jobs)
@@ -179,9 +179,10 @@ class JobBot:
             self.notification_manager.send_summary(jobs_with_letters)
             
             logger.info(f"=== Cycle terminé: {len(jobs_with_letters)} candidatures traitées ===")
-            
+            return jobs_with_letters
         except Exception as e:
             logger.error(f"Erreur lors du cycle: {e}")
+            return []
     
     def _save_cycle_log(self, jobs: List[Dict[str, Any]]):
         """Sauvegarde le log des candidatures du cycle"""

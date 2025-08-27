@@ -11,6 +11,8 @@ from datetime import datetime
 from flask import Flask, render_template_string, request, jsonify, redirect, url_for
 from config_manager import ConfigManager
 from auto_candidature_manager import AutoCandidatureManager
+from threading import Thread
+from bot import JobBot
 
 # Configuration du logging
 logging.basicConfig(level=logging.INFO)
@@ -25,6 +27,7 @@ BOT_STATUS = {
     'total_candidatures': 0,
     'last_cycle_results': None
 }
+_worker_thread = None
 
 def get_bot_status():
     """Récupère le statut actuel du bot"""
@@ -378,12 +381,22 @@ def dashboard():
 def start_bot():
     """Démarre le bot"""
     try:
+        global _worker_thread
+        if BOT_STATUS['running']:
+            return jsonify({'success': True, 'message': 'Bot déjà en cours.'})
+
         BOT_STATUS['running'] = True
         BOT_STATUS['last_run'] = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
-        
-        # Ici vous pourriez lancer le bot en arrière-plan
-        logger.info("Bot démarré via l'interface web")
-        
+
+        def _run_scheduler():
+            try:
+                JobBot().start_scheduler()
+            finally:
+                BOT_STATUS['running'] = False
+
+        _worker_thread = Thread(target=_run_scheduler, daemon=True)
+        _worker_thread.start()
+        logger.info("Bot démarré via l'interface web (scheduler)")
         return jsonify({'success': True, 'message': 'Bot démarré avec succès !'})
     except Exception as e:
         return jsonify({'success': False, 'message': f'Erreur: {e}'})
@@ -392,8 +405,9 @@ def start_bot():
 def stop_bot():
     """Arrête le bot"""
     try:
+        # Note: pour un vrai arrêt, il faudrait une coopérative via un flag/évènement
         BOT_STATUS['running'] = False
-        logger.info("Bot arrêté via l'interface web")
+        logger.info("Demande d'arrêt du bot via l'interface web")
         
         return jsonify({'success': True, 'message': 'Bot arrêté avec succès !'})
     except Exception as e:
@@ -403,17 +417,20 @@ def stop_bot():
 def run_once():
     """Exécute le bot une seule fois"""
     try:
-        # Simuler une exécution
-        BOT_STATUS['last_run'] = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
-        BOT_STATUS['last_cycle_results'] = {
-            'offres_traitees': 5,
-            'candidatures_envoyees': 3,
-            'emails_envoyes': 3
-        }
-        
-        logger.info("Exécution unique du bot via l'interface web")
-        
-        return jsonify({'success': True, 'message': 'Bot exécuté avec succès !'})
+        def _run_once_bg():
+            try:
+                bot = JobBot()
+                results = bot.run_cycle()
+                BOT_STATUS['last_run'] = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
+                BOT_STATUS['last_cycle_results'] = {
+                    'candidatures_traitees': len(results)
+                }
+            except Exception as ex:
+                logger.error(f"Erreur run-once: {ex}")
+
+        Thread(target=_run_once_bg, daemon=True).start()
+        logger.info("Exécution unique du bot via l'interface web (bg)")
+        return jsonify({'success': True, 'message': 'Exécution lancée en arrière-plan. Actualisez dans quelques instants.'})
     except Exception as e:
         return jsonify({'success': False, 'message': f'Erreur: {e}'})
 

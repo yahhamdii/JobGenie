@@ -1,0 +1,40 @@
+# Configuration du bot de candidature automatique
+profile:
+  nom: "YAHYAOUI"
+  email: "hamdi_yahyaoui@yahoo.fr"
+  telephone: "+33 7 45 74 58 84"
+  linkedin: "https://www.linkedin.com/in/hamdi-yahyaoui-230ba153"
+  cv_path: "./cv.pdf"
+
+preferences:
+  stack_technique: ["React", "Node.js", "php", "symfony", "Fullstack", "Backend"]
+  localisation: ["Île-de-France", "Remote", "Télétravail"]
+  type_contrat: ["CDI", "Freelance", "CDD"]
+  salaire_min: 45000
+  mots_cles: ["développeur", "ingénieur", "architecte", "lead", "senior"]
+
+api_keys:
+  france_travail: "VOTRE_TOKEN_API_FRANCE_TRAVAIL"
+  openai: "VOTRE_CLE_API_OPENAI"
+
+sources:
+  france_travail:
+    enabled: false  # Désactivé par défaut - nécessite inscription partenaire
+    url: "https://api.pole-emploi.io/partenaire/offresdemploi/v2/offres/search"
+    note: "Nécessite inscription sur https://pole-emploi.io/data/"
+  linkedin:
+    enabled: true
+    base_url: "https://www.linkedin.com/jobs/search/"
+  indeed:
+    enabled: true
+    base_url: "https://fr.indeed.com/emplois"
+
+generation:
+  mode: "semi_auto"  # auto, semi_auto
+  llm_provider: "openai"  # openai, ollama
+  ollama_model: "llama3"  # si utilisation d'Ollama
+
+notifications:
+  email: true
+  slack: false
+  webhook: ""

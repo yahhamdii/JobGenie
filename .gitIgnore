@@ -1,7 +1,5 @@
 # Fichiers de configuration sensibles
 .env
-config.yaml
-cv.pdf
 
 # Dossiers de sortie
 outbox/

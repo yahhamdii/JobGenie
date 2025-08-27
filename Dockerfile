@@ -1,5 +1,6 @@
 # Dockerfile pour le bot de candidature automatique
-FROM python:3.11-slim
+# Utilise l'image Playwright officielle avec Python et navigateurs préinstallés
+FROM mcr.microsoft.com/playwright/python:v1.40.0-jammy
 
 # Métadonnées
 LABEL maintainer="Bot Candidature"
@@ -11,45 +12,7 @@ ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Installation des dépendances système
-RUN apt-get update && apt-get install -y \
-    wget \
-    gnupg \
-    ca-certificates \
-    procps \
-    libxss1 \
-    libnss3 \
-    libatk-bridge2.0-0 \
-    libdrm2 \
-    libxkbcommon0 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxrandr2 \
-    libgbm1 \
-    libasound2 \
-    libxshmfence1 \
-    libx11-xcb1 \
-    libxcb-dri3-0 \
-    libxcb1 \
-    libxss1 \
-    libxrandr2 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxext6 \
-    libxfixes3 \
-    libxrender1 \
-    libxtst6 \
-    libxi6 \
-    libxrandr2 \
-    libxss1 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxext6 \
-    libxfixes3 \
-    libxrender1 \
-    libxtst6 \
-    libxi6 \
-    && rm -rf /var/lib/apt/lists/*
+# Dépendances système déjà gérées par l'image Playwright
 
 # Création du répertoire de travail
 WORKDIR /jobgenie
@@ -61,22 +24,17 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# Installation de Playwright
-RUN playwright install chromium
-RUN playwright install-deps chromium
+# Navigateurs déjà installés dans l'image Playwright
 
 # Copie du code source
 COPY . .
 
-# Création des dossiers nécessaires
-RUN mkdir -p logs outbox temp cv_letters
+# Création des dossiers nécessaires et permissions
+RUN mkdir -p logs outbox temp cv_letters && \
+    chown -R pwuser:pwuser /jobgenie
 
-# Création d'un utilisateur non-root
-RUN useradd --create-home --shell /bin/bash botuser && \
-    chown -R botuser:botuser /app
-
-# Changement vers l'utilisateur non-root
-USER botuser
+# Utilisateur non-root par défaut dans l'image: pwuser
+USER pwuser
 
 # Exposition du port (optionnel, pour une interface web future)
 EXPOSE 8000

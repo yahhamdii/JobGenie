@@ -147,18 +147,29 @@ jobs:
           command_timeout: 30m
           script: |
             set -e
+            set -x
+            # detect docker command
+            if command -v docker >/dev/null 2>&1; then
+              DOCKER="docker"
+            elif command -v sudo >/dev/null 2>&1 && sudo -n docker version >/dev/null 2>&1; then
+              DOCKER="sudo docker"
+            else
+              echo "Docker is not installed or not accessible for this user" >&2
+              exit 1
+            fi
+            $DOCKER version || true
             mkdir -p ~/jobgenie-data/{outbox,logs,cv_letters}
             if [ -n "$ENV_FILE" ]; then
               echo "$ENV_FILE" > ~/jobgenie-data/.env
             fi
             echo "$IMAGE"
             if [ -n "$GHCR_TOKEN" ]; then
-              echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
+              echo "$GHCR_TOKEN" | $DOCKER login ghcr.io -u "$GHCR_USERNAME" --password-stdin || true
             else
               echo "GHCR_TOKEN not set; attempting anonymous pull (works only for public images)"
             fi
-            docker pull "$IMAGE"
-            docker rm -f jobgenie || true
+            $DOCKER pull "$IMAGE"
+            $DOCKER rm -f jobgenie || true
             if [ -f ~/jobgenie-data/.env ]; then
               EF_OPT="--env-file ~/jobgenie-data/.env"
             else
@@ -179,5 +190,5 @@ jobs:
               echo "No CV.pdf on server; using image default /jobgenie/CV.pdf"
             fi
             # shellcheck disable=SC2086
-            docker run $RUN_OPTS "$IMAGE"
+            $DOCKER run $RUN_OPTS "$IMAGE"
 

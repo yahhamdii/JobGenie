@@ -187,6 +187,7 @@ jobs:
               -v ~/jobgenie-data/outbox:/jobgenie/outbox \
               -v ~/jobgenie-data/logs:/jobgenie/logs \
               -v ~/jobgenie-data/cv_letters:/jobgenie/cv_letters"
+            set +e
             if [ -f ~/jobgenie-data/config.yaml ]; then
               RUN_OPTS="$RUN_OPTS -v ~/jobgenie-data/config.yaml:/jobgenie/config.yaml:ro"
             else
@@ -197,6 +198,7 @@ jobs:
             else
               echo "No CV.pdf on server; using image default /jobgenie/CV.pdf"
             fi
+            set -e
             # shellcheck disable=SC2086
             $DOCKER run $RUN_OPTS "$IMAGE"
         env:

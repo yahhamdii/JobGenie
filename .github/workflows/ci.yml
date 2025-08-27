@@ -150,7 +150,7 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: ${{ secrets.DEPLOY_PORT || '22' }}
-          script_stop: true
+          script_stop: false
           command_timeout: 30m
           envs: ENV_FILE,IMAGE,GHCR_USERNAME,GHCR_TOKEN
           script: |

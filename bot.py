@@ -23,13 +23,18 @@ from candidature_manager import CandidatureManager
 from notification_manager import NotificationManager
 
 # Configuration du logging
+handlers: List[logging.Handler] = [logging.StreamHandler()]
+try:
+    os.makedirs('logs', exist_ok=True)
+    handlers.insert(0, logging.FileHandler('logs/bot.log'))
+except Exception:
+    # Si on ne peut pas écrire dans logs/, on continue avec la sortie console uniquement
+    pass
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('logs/bot.log'),
-        logging.StreamHandler()
-    ]
+    handlers=handlers
 )
 logger = logging.getLogger(__name__)
 

@@ -13,6 +13,7 @@ from config_manager import ConfigManager
 from auto_candidature_manager import AutoCandidatureManager
 from threading import Thread
 from bot import JobBot
+import yaml
 
 # Configuration du logging
 logging.basicConfig(level=logging.INFO)
@@ -266,6 +267,10 @@ HTML_TEMPLATE = """
             font-family: monospace; 
             font-size: 0.9em;
         }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-top: 12px; }
+        .form-grid label { font-weight: 600; margin-bottom: 6px; display: block; }
+        .form-grid input, .form-grid select, .form-grid textarea { width: 100%; padding: 8px; border: 1px solid #dee2e6; border-radius: 6px; }
+        .switch { display: flex; align-items: center; gap: 8px; }
         
         @media (max-width: 768px) {
             .status-grid { grid-template-columns: 1fr; }
@@ -379,11 +384,88 @@ HTML_TEMPLATE = """
                         <div class="value">Max/cycle: {{ bot_status.config.auto_candidature.max_candidatures_per_cycle }}</div>
                     </div>
                 </div>
+
+                <h3 style="margin-top:20px;">Modifier les critères de recherche</h3>
+                <form id="prefs-form" onsubmit="savePrefs(event)">
+                    <div class="form-grid">
+                        <div>
+                            <label>Mots-clés (séparés par des virgules)</label>
+                            <input type="text" id="stack_technique" placeholder="ex: python, react, node" />
+                        </div>
+                        <div>
+                            <label>Localisations (séparées par des virgules)</label>
+                            <input type="text" id="localisation" placeholder="ex: France, Remote, Paris" />
+                        </div>
+                        <div>
+                            <label>Types de contrat (séparés par des virgules)</label>
+                            <input type="text" id="type_contrat" placeholder="ex: CDI, Freelance, CDD" />
+                        </div>
+                        <div>
+                            <label>Salaire minimum (€)</label>
+                            <input type="number" id="salaire_min" min="0" />
+                        </div>
+                        <div>
+                            <label>Score minimum (%)</label>
+                            <input type="number" id="min_score" min="0" max="100" />
+                        </div>
+                        <div class="switch">
+                            <input type="checkbox" id="src_linkedin" /> <label for="src_linkedin">LinkedIn</label>
+                        </div>
+                        <div class="switch">
+                            <input type="checkbox" id="src_indeed" /> <label for="src_indeed">Indeed</label>
+                        </div>
+                        <div class="switch">
+                            <input type="checkbox" id="src_france" /> <label for="src_france">France Travail</label>
+                        </div>
+                    </div>
+                    <div style="margin-top:12px; display:flex; gap:10px;">
+                        <button class="btn btn-primary" type="submit">💾 Enregistrer</button>
+                        <button class="btn btn-success" type="button" onclick="runOnce()">🚀 Enregistrer et exécuter</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
     
     <script>
+        // Charger les préférences existantes
+        fetch('/api/preferences').then(r=>r.json()).then(p => {
+            if (!p || !p.success) return;
+            const prefs = p.data;
+            document.getElementById('stack_technique').value = (prefs.stack_technique||[]).join(', ');
+            document.getElementById('localisation').value = (prefs.localisation||[]).join(', ');
+            document.getElementById('type_contrat').value = (prefs.type_contrat||[]).join(', ');
+            document.getElementById('salaire_min').value = prefs.salaire_min || 0;
+            document.getElementById('min_score').value = (p.auto && p.auto.min_score_percentage) || 60;
+            document.getElementById('src_linkedin').checked = !!(p.sources && p.sources.linkedin);
+            document.getElementById('src_indeed').checked = !!(p.sources && p.sources.indeed);
+            document.getElementById('src_france').checked = !!(p.sources && p.sources.france_travail);
+        });
+
+        function parseList(v) {
+            return (v||'').split(',').map(x=>x.trim()).filter(Boolean);
+        }
+
+        async function savePrefs(e) {
+            e.preventDefault();
+            const payload = {
+                stack_technique: parseList(document.getElementById('stack_technique').value),
+                localisation: parseList(document.getElementById('localisation').value),
+                type_contrat: parseList(document.getElementById('type_contrat').value),
+                salaire_min: Number(document.getElementById('salaire_min').value || 0),
+                min_score_percentage: Number(document.getElementById('min_score').value || 60),
+                sources: {
+                    linkedin: document.getElementById('src_linkedin').checked,
+                    indeed: document.getElementById('src_indeed').checked,
+                    france_travail: document.getElementById('src_france').checked
+                }
+            };
+            const res = await fetch('/api/preferences', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+            const j = await res.json();
+            alert(j.message || (j.success ? 'Préférences enregistrées' : 'Erreur'));
+            if (j.success) refreshStatus();
+        }
+        
         function startBot() {
             fetch('/api/start', {method: 'POST'})
                 .then(response => response.json())
@@ -509,6 +591,58 @@ def run_once():
 def api_status():
     """API pour récupérer le statut du bot"""
     return jsonify(get_bot_status())
+
+@app.route('/api/preferences', methods=['GET'])
+def get_preferences_api():
+    try:
+        cfg = ConfigManager()
+        data = cfg.get_preferences()
+        return jsonify({
+            'success': True,
+            'data': data,
+            'auto': cfg.get('auto_candidature'),
+            'sources': {
+                'linkedin': cfg.get('sources.linkedin.enabled', False),
+                'indeed': cfg.get('sources.indeed.enabled', False),
+                'france_travail': cfg.get('sources.france_travail.enabled', False)
+            }
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/api/preferences', methods=['POST'])
+def save_preferences_api():
+    try:
+        payload = request.get_json(force=True)
+        # Charger config existante
+        path = 'config.yaml'
+        with open(path, 'r', encoding='utf-8') as f:
+            config = yaml.safe_load(f)
+
+        # Mettre à jour
+        config.setdefault('preferences', {})
+        config['preferences']['stack_technique'] = payload.get('stack_technique', [])
+        config['preferences']['localisation'] = payload.get('localisation', [])
+        config['preferences']['type_contrat'] = payload.get('type_contrat', [])
+        config['preferences']['salaire_min'] = payload.get('salaire_min', 0)
+
+        config.setdefault('auto_candidature', {})
+        config['auto_candidature']['min_score_percentage'] = payload.get('min_score_percentage', 60)
+
+        config.setdefault('sources', {})
+        for k in ['linkedin','indeed','france_travail']:
+            config['sources'].setdefault(k, {})
+            config['sources'][k]['enabled'] = bool(payload.get('sources', {}).get(k, False))
+
+        # Sauvegarder
+        with open(path, 'w', encoding='utf-8') as f:
+            yaml.safe_dump(config, f, allow_unicode=True, sort_keys=False)
+
+        # Recharger la config en mémoire à la prochaine lecture
+        return jsonify({'success': True, 'message': 'Préférences mises à jour'})
+    except Exception as e:
+        logger.error(f"Erreur sauvegarde préférences: {e}")
+        return jsonify({'success': False, 'message': str(e)})
 
 if __name__ == '__main__':
     logger.info("🚀 Démarrage de l'interface web sur le port 7001")

@@ -166,9 +166,10 @@ jobs:
               exit 1
             fi
             $DOCKER version || true
-            mkdir -p ~/jobgenie-data/{outbox,logs,cv_letters}
+            BASE_DIR="$HOME/jobgenie-data"
+            mkdir -p "$BASE_DIR"/outbox "$BASE_DIR"/logs "$BASE_DIR"/cv_letters
             if [ -n "$ENV_FILE" ]; then
-              echo "$ENV_FILE" > ~/jobgenie-data/.env
+              echo "$ENV_FILE" > "$BASE_DIR/.env"
             fi
             echo "$IMAGE"
             if [ -n "$GHCR_TOKEN" ]; then
@@ -178,23 +179,23 @@ jobs:
             fi
             $DOCKER pull "$IMAGE"
             $DOCKER rm -f jobgenie || true
-            if [ -f ~/jobgenie-data/.env ]; then
-              EF_OPT="--env-file ~/jobgenie-data/.env"
+            if [ -f "$BASE_DIR/.env" ]; then
+              EF_OPT="--env-file $BASE_DIR/.env"
             else
               EF_OPT=""
             fi
             RUN_OPTS="-d --name jobgenie -p 7001:7001 $EF_OPT \
-              -v ~/jobgenie-data/outbox:/jobgenie/outbox \
-              -v ~/jobgenie-data/logs:/jobgenie/logs \
-              -v ~/jobgenie-data/cv_letters:/jobgenie/cv_letters"
+              -v $BASE_DIR/outbox:/jobgenie/outbox \
+              -v $BASE_DIR/logs:/jobgenie/logs \
+              -v $BASE_DIR/cv_letters:/jobgenie/cv_letters"
             set +e
-            if [ -f ~/jobgenie-data/config.yaml ]; then
-              RUN_OPTS="$RUN_OPTS -v ~/jobgenie-data/config.yaml:/jobgenie/config.yaml:ro"
+            if [ -f "$BASE_DIR/config.yaml" ]; then
+              RUN_OPTS="$RUN_OPTS -v $BASE_DIR/config.yaml:/jobgenie/config.yaml:ro"
             else
               echo "No config.yaml on server; using image default /jobgenie/config.yaml"
             fi
-            if [ -f ~/jobgenie-data/CV.pdf ]; then
-              RUN_OPTS="$RUN_OPTS -v ~/jobgenie-data/CV.pdf:/jobgenie/cv.pdf:ro"
+            if [ -f "$BASE_DIR/CV.pdf" ]; then
+              RUN_OPTS="$RUN_OPTS -v $BASE_DIR/CV.pdf:/jobgenie/cv.pdf:ro"
             else
               echo "No CV.pdf on server; using image default /jobgenie/CV.pdf"
             fi

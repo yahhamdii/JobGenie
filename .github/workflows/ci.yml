@@ -107,7 +107,7 @@ jobs:
       - name: Compute lowercase repo
         id: repolc
         run: |
-          echo "repo_lc=ghcr.io/$(echo \"$GITHUB_REPOSITORY\" | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+          echo repo_lc=ghcr.io/${GITHUB_REPOSITORY,,} >> $GITHUB_OUTPUT
 
       - name: Extract metadata (tags, labels)
         id: meta
@@ -136,7 +136,7 @@ jobs:
       - name: Compute lowercase repo
         id: repolc_deploy
         run: |
-          echo "repo_lc=ghcr.io/$(echo \"$GITHUB_REPOSITORY\" | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+          echo repo_lc=ghcr.io/${GITHUB_REPOSITORY,,} >> $GITHUB_OUTPUT
 
       - name: Prepare image name
         id: prep

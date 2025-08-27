@@ -89,6 +89,32 @@ def get_recent_candidatures(limit=10):
         logger.error(f"Erreur lors de la récupération des candidatures: {e}")
         return []
 
+def get_applications_history(limit=50):
+    """Lit le journal des candidatures traitées (préparées/envoyées)"""
+    try:
+        history = []
+        log_file = 'logs/applications.json'
+        if os.path.exists(log_file):
+            with open(log_file, 'r', encoding='utf-8') as f:
+                entries = json.load(f)
+            # entries est une liste de cycles
+            for entry in reversed(entries):  # plus récents d'abord
+                date = entry.get('date')
+                for c in entry.get('candidatures', []):
+                    history.append({
+                        'date': date,
+                        'id': c.get('id'),
+                        'titre': c.get('titre'),
+                        'entreprise': c.get('entreprise'),
+                        'source': c.get('source'),
+                        'status': c.get('status'),
+                        'lettre_path': c.get('lettre_path')
+                    })
+        return history[:limit]
+    except Exception as e:
+        logger.error(f"Erreur lecture historique candidatures: {e}")
+        return []
+
 # Template HTML pour l'interface
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -198,6 +224,11 @@ HTML_TEMPLATE = """
             padding: 25px; 
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
+        .tabs { display: flex; gap: 12px; margin-bottom: 20px; }
+        .tab { padding: 8px 14px; border-radius: 8px; background: #e9ecef; cursor: pointer; }
+        .tab.active { background: #007bff; color: white; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
         .candidature-item { 
             background: #f8f9fa; 
             padding: 20px; 
@@ -285,8 +316,14 @@ HTML_TEMPLATE = """
                 {% endif %}
             </div>
             
+            <!-- Onglets -->
+            <div class="tabs">
+                <div class="tab active" onclick="openTab('recent')">Candidatures récentes</div>
+                <div class="tab" onclick="openTab('history')">Historique (préparées/envoyées)</div>
+            </div>
+
             <!-- Candidatures récentes -->
-            <div class="candidatures">
+            <div class="candidatures tab-content active" id="tab-recent">
                 <h2>📁 Candidatures Récentes</h2>
                 {% if candidatures %}
                     {% for candidature in candidatures %}
@@ -300,7 +337,25 @@ HTML_TEMPLATE = """
                     <p>Aucune candidature trouvée.</p>
                 {% endif %}
             </div>
-            
+
+            <!-- Historique des candidatures -->
+            <div class="candidatures tab-content" id="tab-history">
+                <h2>🗂️ Historique des Candidatures</h2>
+                {% if applications_history %}
+                    {% for app in applications_history %}
+                    <div class="candidature-item">
+                        <h3>{{ app.titre }} — {{ app.entreprise }}</h3>
+                        <div class="date">{{ app.date }} • {{ app.source }} • {{ app.status }}</div>
+                        {% if app.lettre_path %}
+                        <div class="resume">Lettre: {{ app.lettre_path }}</div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p>Aucun historique disponible.</p>
+                {% endif %}
+            </div>
+
             <!-- Configuration -->
             <div class="config-section">
                 <h2>⚙️ Configuration</h2>
@@ -359,7 +414,21 @@ HTML_TEMPLATE = """
         function refreshStatus() {
             location.reload();
         }
-        
+
+        function openTab(name) {
+            const tabs = document.querySelectorAll('.tab');
+            const contents = document.querySelectorAll('.tab-content');
+            tabs.forEach(t => t.classList.remove('active'));
+            contents.forEach(c => c.classList.remove('active'));
+            if (name === 'recent') {
+                tabs[0].classList.add('active');
+                document.getElementById('tab-recent').classList.add('active');
+            } else {
+                tabs[1].classList.add('active');
+                document.getElementById('tab-history').classList.add('active');
+            }
+        }
+
         // Actualisation automatique toutes les 30 secondes
         setInterval(refreshStatus, 30000);
     </script>
@@ -372,10 +441,12 @@ def dashboard():
     """Page principale du dashboard"""
     bot_status = get_bot_status()
     candidatures = get_recent_candidatures(10)
+    applications = get_applications_history(50)
     
     return render_template_string(HTML_TEMPLATE, 
                                 bot_status=bot_status, 
-                                candidatures=candidatures)
+                                candidatures=candidatures,
+                                applications_history=applications)
 
 @app.route('/api/start', methods=['POST'])
 def start_bot():

@@ -1,0 +1,29 @@
+# Configuration des variables d'environnement pour le bot de candidature
+
+# === API OpenAI (GPT) ===
+# Obtenez votre clé sur : https://platform.openai.com/api-keys
+OPENAI_API_KEY=votre_cle_api_openai_ici
+
+# === Configuration SMTP (Email) ===
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USERNAME=ecommercetunisia1@gmail.com
+SMTP_PASSWORD=hnbr ideo qrby zuzz
+
+# === Configuration Slack ===
+SLACK_WEBHOOK_URL=https://hooks.slack.com/services/votre/webhook/url
+
+# === Configuration Webhook personnalisé ===
+CUSTOM_WEBHOOK_URL=https://votre-webhook.com/endpoint
+
+# === Configuration Ollama (LLM local) ===
+OLLAMA_HOST=http://localhost:11434
+OLLAMA_MODEL=llama3
+
+# === Configuration des logs ===
+LOG_LEVEL=INFO
+LOG_FILE=logs/bot.log
+
+# === Configuration du bot ===
+BOT_INTERVAL_HOURS=6
+BOT_MAX_JOBS_PER_CYCLE=50
